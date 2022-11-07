@@ -27,6 +27,8 @@ def to_rgb(
     image: Image.Image,
     color: Tuple[int, int, int] = (255, 255, 255),
 ) -> Image.Image:
+    if image.mode == "CMYK":
+        return image.convert("RGB")
     split = image.split()
     if len(split) < 4:
         return image.convert("RGB")
