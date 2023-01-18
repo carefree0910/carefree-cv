@@ -2,6 +2,7 @@ import numpy as np
 
 from io import BytesIO
 from PIL import Image
+from numpy import ndarray
 from typing import Tuple
 from typing import Literal
 from cftool.array import torch
@@ -17,7 +18,7 @@ def resize_image(
     thumbnail: int,
     resize: int,
     resample: Literal = Image.ANTIALIAS,
-) -> np.ndarray:
+) -> ndarray:
     image.thumbnail((thumbnail, thumbnail), resample)
     img_arr = np.array(image)
     return sk_resize(img_arr, (resize, resize), mode="constant").astype(np.float32)
@@ -38,13 +39,13 @@ def to_rgb(
 
 
 def to_uint8(normalized_img: arr_type) -> arr_type:
-    if isinstance(normalized_img, np.ndarray):
+    if isinstance(normalized_img, ndarray):
         return (np.clip(normalized_img * 255.0, 0.0, 255.0)).astype(np.uint8)
     return torch.clamp(normalized_img * 255.0, 0.0, 255.0).to(torch.uint8)
 
 
 def clip_normalize(arr: arr_type) -> arr_type:
-    fn = np if isinstance(arr, np.ndarray) else torch
+    fn = np if isinstance(arr, ndarray) else torch
     if arr.dtype == fn.uint8:
         return arr
     return fn.clip(arr, 0.0, 1.0)
@@ -55,7 +56,7 @@ def min_max_normalize(arr: arr_type, *, global_norm: bool = True) -> arr_type:
     if global_norm:
         arr_min, arr_max = arr.min(), arr.max()
         return (arr - arr_min) / max(eps, arr_max - arr_min)
-    if isinstance(arr, np.ndarray):
+    if isinstance(arr, ndarray):
         arr_min, arr_max = arr.min(axis=0), arr.max(axis=0)
         diff = np.maximum(eps, arr_max - arr_min)
     else:
@@ -72,7 +73,7 @@ def quantile_normalize(
 ) -> arr_type:
     eps = 1.0e-8
     # quantiles
-    if isinstance(arr, np.ndarray):
+    if isinstance(arr, ndarray):
         kw = {"axis": 0}
         quantile_fn = np.quantile
     else:
@@ -88,7 +89,7 @@ def quantile_normalize(
     if global_norm:
         diff = max(eps, arr_max - arr_min)
     else:
-        if isinstance(arr, np.ndarray):
+        if isinstance(arr, ndarray):
             diff = np.maximum(eps, arr_max - arr_min)
         else:
             diff = torch.clamp(arr_max - arr_min, min=eps)
@@ -99,7 +100,7 @@ def quantile_normalize(
 def imagenet_normalize(arr: arr_type) -> arr_type:
     mean_gray, std_gray = [0.485], [0.229]
     mean_rgb, std_rgb = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-    if isinstance(arr, np.ndarray):
+    if isinstance(arr, ndarray):
         constructor = lambda inp: np.array(inp, dtype=np.float32).reshape([1, 1, -1])
     else:
         constructor = lambda inp: torch.tensor(inp, device=arr.device).view(-1, 1, 1)
@@ -111,14 +112,14 @@ def imagenet_normalize(arr: arr_type) -> arr_type:
 
 
 def is_gray(arr: arr_type) -> bool:
-    if isinstance(arr, np.ndarray):
+    if isinstance(arr, ndarray):
         return arr.shape[-1] == 1
     if len(arr.shape) == 3:
         return arr.shape[0] == 1
     return arr.shape[1] == 1
 
 
-def np_to_bytes(img_arr: np.ndarray) -> bytes:
+def np_to_bytes(img_arr: ndarray) -> bytes:
     if img_arr.dtype != np.uint8:
         img_arr = to_uint8(img_arr)
     bytes_io = BytesIO()
@@ -126,13 +127,13 @@ def np_to_bytes(img_arr: np.ndarray) -> bytes:
     return bytes_io.getvalue()
 
 
-def naive_cutout(normalized_img: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+def naive_cutout(normalized_img: ndarray, alpha: ndarray) -> ndarray:
     if normalized_img.shape[-1] == 4:
         normalized_img = normalized_img[..., :3] * normalized_img[..., -1:]
     return to_uint8(np.concatenate([normalized_img, alpha[..., None]], axis=2))
 
 
-def alpha_align(img: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+def alpha_align(img: ndarray, alpha: ndarray) -> ndarray:
     alpha_im = Image.fromarray(min_max_normalize(alpha))
     size = img.shape[1], img.shape[0]
     alpha = np.array(alpha_im.resize(size, Image.LANCZOS))
@@ -141,11 +142,11 @@ def alpha_align(img: np.ndarray, alpha: np.ndarray) -> np.ndarray:
 
 
 def cutout(
-    normalized_img: np.ndarray,
-    alpha: np.ndarray,
+    normalized_img: ndarray,
+    alpha: ndarray,
     smooth: int = 0,
     tight: float = 0.9,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[ndarray, ndarray]:
     alpha = alpha_align(normalized_img, alpha)
     if smooth > 0:
         alpha = gaussian(alpha, smooth)
