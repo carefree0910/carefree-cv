@@ -66,7 +66,7 @@ def min_max_normalize(arr: arr_type, *, global_norm: bool = True) -> arr_type:
         diff = np.maximum(eps, arr_max - arr_min)
     else:
         arr_min, arr_max = arr.min(dim=0).values, arr.max(dim=0).values
-        diff = torch.clip(arr_max - arr_min, max=eps)
+        diff = torch.clip(arr_max - arr_min, min=eps)
     return (arr - arr_min) / diff
 
 
