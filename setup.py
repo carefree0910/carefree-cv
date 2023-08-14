@@ -2,7 +2,7 @@ from setuptools import setup
 from setuptools import find_packages
 
 
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 
 DESCRIPTION = "Some commonly used computer vision functions and modules"
 with open("README.md") as f:
